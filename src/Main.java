@@ -1,20 +1,16 @@
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 public class Main {
-    public static void main(String[] args) throws InterruptedException {
+    public static void main(String[] args) throws InterruptedException, ExecutionException {
 
         int threads = Runtime.getRuntime().availableProcessors();
         System.out.println("Число возможных потоков для вычисления - " + threads);
-        threads = 25;
         System.out.println("Для выполнения задачи будем использовать " + threads + " потоков.");
 
         ExecutorService executorService = Executors.newFixedThreadPool(threads);
-        List<Runnable> tasks = new ArrayList<>();
 
         String[] texts = new String[25];
         for (int i = 0; i < texts.length; i++) {
@@ -23,6 +19,7 @@ public class Main {
         // start time
         long startTs = System.currentTimeMillis();
 
+        List<Callable<Integer>> tasks = new ArrayList<>();
         for (String text : texts) {
             tasks.add(() -> {
                 int maxSize = 0;
@@ -44,18 +41,25 @@ public class Main {
                     }
                 }
                 System.out.println(text.substring(0, 100) + " -> " + maxSize);
+                return maxSize;
             });
         }
 
-        for (Runnable task : tasks) {
-            executorService.submit(task);
+        List<Future<Integer>> futures = executorService.invokeAll(tasks);
+        int maxInterval = 0;
+        for (Future<Integer> future : futures) {
+            int max = future.get();
+            if (max > maxInterval) {
+                maxInterval = max;
+            }
         }
 
         executorService.shutdown();
-        executorService.awaitTermination(30, TimeUnit.SECONDS);
 
         long endTs = System.currentTimeMillis(); // end time
         System.out.println("Time: " + (endTs - startTs) + "ms");
+
+        System.out.println("Максимальный интервал букв 'a' составляет " + maxInterval + " букв.");
     }// main
 
     public static String generateText(String letters, int length) {
